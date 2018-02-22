@@ -32,8 +32,6 @@ plot(row.names(time_series), time_series, type = "l", xlab = "5-min interval",
 max_interval <- which.max(time_series)
 names(max_interval)
 
-
-
 ## Imputing missing values
 
 activity_NA <- sum(is.na(activity))
