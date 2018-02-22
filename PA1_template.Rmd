@@ -7,19 +7,82 @@ output:
 
 
 ## Loading and preprocessing the data
-
+activitydataset <- read.csv("activity.csv", header=TRUE, na.strings = "NA") 
 
 
 ## What is mean total number of steps taken per day?
+ 
+
+steps_per_day <- aggregate(steps ~ date, data = activitydataset, FUN=sum, na.rm = TRUE)
+activitydataset_mean <-    mean(steps_per_day$steps)
+activitydataset_mean
 
 
+hist(steps_per_day$steps,xlab="Frequency",ylab="Steps",main="Total Number of Steps Taken Each Day", border="purple",lwd=2,lty=268,col="pink")
 
 ## What is the average daily activity pattern?
+
+time_series <- tapply( activitydataset$steps,  activitydataset$interval, mean, na.rm = TRUE)
+
+plot(row.names(time_series), time_series, type = "l", xlab = "5-min interval", 
+     ylab = "Average across all Days", main = "Total Steps vs. 5-Minute Interval", 
+     col = "blue")
+
+max_interval <- which.max(time_series)
+names(max_interval)
 
 
 
 ## Imputing missing values
 
+activity_NA <- sum(is.na(activity))
+activity_NA
+
+
+#In the original data set aggregating (mean) steps over 5-minute interval
+meaninterval<- aggregate(steps ~ interval, activitydataset, FUN=mean)
+
+#Merging the mean of total steps for a date with the original data set
+new_activitydataset <- merge(x=activitydataset, y=meaninterval, by="interval")
+
+#Replacing the NA values with the mean for that 5-minute interval
+new_activitydataset$steps <- ifelse(is.na(new_activitydataset$steps.x), new_activitydataset$steps.y, new_activitydataset$steps.x)
+
+#Merged dataset which will be subsetted in the next step by removing not required columns
+head(new_activitydataset)
+
+
+#Fetching only the required columns (steps, date, interval) and storing in the new data set.
+new_activitydataset <- select(new_activitydataset, steps, date, interval)
+
+#New dataset with NA imputed by mean for that 5-minute interval
+head(new_activitydataset)
+
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+#Aggregating(summation) of steps over date
+steps_per_day_new<- aggregate(steps ~ date, new_activitydataset, FUN=sum)
+
+#Plotting
+#Setting up the pannel for one row and two columns
+par(mfrow=c(1,2))
+
+#Histogram after imputing NA values with mean of 5-min interval
+
+hist(steps_per_day_new$steps, 
+     col="Red",
+     xlab = "Steps", 
+     ylab = "Frequency",
+     ylim = c(0,35),
+     main = "Total Number Of Steps Taken Each day \n(After imputing NA values with \n mean of 5-min interval)",
+     cex.main = 0.7)
+
+#Histogram with the orginal dataset
+hist(steps_per_day$steps, 
+     col="purple", 
+     xlab = "Steps", 
+     ylab = "Frequency",
+     ylim = c(0,35),
+     main = "Total Number Of Steps Taken Each day \n(Orginal Dataset)",
+     cex.main = 0.7)
