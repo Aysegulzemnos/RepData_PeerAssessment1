@@ -1,53 +1,108 @@
+---
+title: "First Markdown Project"
+author: "Aysegul Sonmez"
+date: "February 22, 2018"
+output: html_document
+---
 
 
-## ----loaddata------------------------------------------------------------
 
-```r
-unzip(zipfile="activity.zip")
-```
+--------------------------------------------
 
-```
-## Warning in unzip(zipfile = "activity.zip"): error 1 in extracting from zip
-## file
-```
-
-```r
-data <- read.csv("activity.csv") 
-```
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+----------------------------------------------
 
 
-## ------------------------------------------------------------------------
-
-```r
-library(ggplot2)
-install.packages("psych")
-```
-
-```
-## Error in install.packages : Updating loaded packages
-```
+## Loading and preprocessing the data
 
 ```r
-library(psych)
+data <- read.csv("activity.csv")
 ```
 
-
-## Loading and preprocessing the data 
-
-
-
-
-```{r} activitydataset <- read.csv("activity.csv", header=TRUE, na.strings = "NA")
-   head(activitydataset)
-   ```
 ## What is mean total number of steps taken per day?
 
 
+```r
+library(ggplot2)
+total.steps <- tapply(data$steps, data$date, FUN=sum, na.rm=TRUE)
+qplot(total.steps, binwidth=1000, xlab="total number of steps taken each day")
+```
+
+![plot of chunk unnamed-chunk-21](figure/unnamed-chunk-21-1.png)
 
 ```r
-steps_per_day <- aggregate(steps ~ date, data = activitydataset, FUN=sum, na.rm = TRUE)
-activitydataset_mean <-    mean(steps_per_day$steps)
-activitydataset_mean
+mean(total.steps, na.rm=TRUE)
+```
+
+```
+## [1] 9354.23
+```
+
+```r
+median(total.steps, na.rm=TRUE)
+```
+
+```
+## [1] 10395
+```
+
+## What is the average daily activity pattern?
+
+
+```r
+library(ggplot2)
+
+averages <- aggregate(x=list(steps=data$steps), by=list(interval=data$interval),
+                      FUN=mean, na.rm=TRUE)
+ggplot(data=averages, aes(x=interval, y=steps)) +
+  geom_line() +
+  xlab("5-minute interval") +
+  ylab("average number of steps taken")
+```
+
+![plot of chunk unnamed-chunk-22](figure/unnamed-chunk-22-1.png)
+
+
+## Imputing missing values
+
+```r
+missing <- is.na(data$steps)
+table(missing)
+```
+
+```
+## missing
+## FALSE  TRUE 
+## 15264  2304
+```
+
+```r
+fill.value <- function(steps, interval) {
+  filled <- NA
+  if (!is.na(steps))
+    filled <- c(steps)
+  else
+    filled <- (averages[averages$interval==interval, "steps"])
+  return(filled)
+}
+filled.data <- data
+filled.data$steps <- mapply(fill.value, filled.data$steps, filled.data$interval)
+```
+## Are there differences in activity patterns between weekdays and weekends?
+
+
+```r
+total.steps <- tapply(filled.data$steps, filled.data$date, FUN=sum)
+qplot(total.steps, binwidth=1000, xlab="total number of steps taken each day")
+```
+
+![plot of chunk unnamed-chunk-24](figure/unnamed-chunk-24-1.png)
+
+```r
+mean(total.steps)
 ```
 
 ```
@@ -55,136 +110,30 @@ activitydataset_mean
 ```
 
 ```r
-hist(steps_per_day$steps,xlab="Frequency",ylab="Steps",main="Total Number of Steps Taken Each Day", border="purple",lwd=2,lty=268,col="pink") 
+median(total.steps)
 ```
 
-![plot of chunk unnamed-chunk-3](figure/unnamed-chunk-3-1.png)
-
-## What is the average daily activity pattern?
-
+```
+## [1] 10766.19
+```
 
 ```r
- time_series <- tapply( activitydataset$steps,  activitydataset$interval, mean, na.rm = TRUE)
+weekday.or.weekend <- function(date) {
+  day <- weekdays(date)
+  if (day %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"))
+    return("weekday")
+  else if (day %in% c("Saturday", "Sunday"))
+    return("weekend")
+  else
+    stop("invalid date")
+}
+filled.data$date <- as.Date(filled.data$date)
+filled.data$day <- sapply(filled.data$date, FUN=weekday.or.weekend)
 
-plot(row.names(time_series), time_series, type = "l", xlab = "5-min interval", 
-     ylab = "Average across all Days", main = "Total Steps vs. 5-Minute Interval", 
-     col = "blue")
+averages <- aggregate(steps ~ interval + day, data=filled.data, mean)
+ggplot(averages, aes(interval, steps)) + geom_line() + facet_grid(day ~ .) +
+  xlab("5-minute interval") + ylab("Number of steps")
 ```
 
-![plot of chunk unnamed-chunk-4](figure/unnamed-chunk-4-1.png)
+![plot of chunk unnamed-chunk-24](figure/unnamed-chunk-24-2.png)
 
-```r
-max_interval <- which.max(time_series)
-names(max_interval)
-```
-
-```
-## [1] "835"
-```
-
-## Imputing missing values
-
-
-```r
-activity_NA <- sum(is.na(activity))
-activity_NA
-```
-
-```
-## [1] 2304
-```
-
-##In the original data set aggregating (mean) steps over 5-minute interval
-
-```r
-meaninterval<- aggregate(steps ~ interval, activitydataset, FUN=mean)
-```
-##Merging the mean of total steps for a date with the original data set
-
-```r
-new_activitydataset <- merge(x=activitydataset, y=meaninterval, by="interval")
-```
-##Replacing the NA values with the mean for that 5-minute interval
-
-```r
-new_activitydataset$steps <- ifelse(is.na(new_activitydataset$steps.x), new_activitydataset$steps.y, new_activitydataset$steps.x)
-```
-##Merged dataset which will be subsetted in the next step by removing not required columns
-
-```r
-head(new_activitydataset)
-```
-
-```
-##   interval steps.x       date  steps.y    steps
-## 1        0      NA 2012-10-01 1.716981 1.716981
-## 2        0       0 2012-11-23 1.716981 0.000000
-## 3        0       0 2012-10-28 1.716981 0.000000
-## 4        0       0 2012-11-06 1.716981 0.000000
-## 5        0       0 2012-11-24 1.716981 0.000000
-## 6        0       0 2012-11-15 1.716981 0.000000
-```
-
-##Fetching only the required columns (steps, date, interval) and storing in the new data set.
-
-```r
-new_activitydataset <- select(new_activitydataset, steps, date, interval)
-```
-
-```
-## Error in select(new_activitydataset, steps, date, interval): could not find function "select"
-```
-##New dataset with NA imputed by mean for that 5-minute interval
-
-```r
-head(new_activitydataset)
-```
-
-```
-##   interval steps.x       date  steps.y    steps
-## 1        0      NA 2012-10-01 1.716981 1.716981
-## 2        0       0 2012-11-23 1.716981 0.000000
-## 3        0       0 2012-10-28 1.716981 0.000000
-## 4        0       0 2012-11-06 1.716981 0.000000
-## 5        0       0 2012-11-24 1.716981 0.000000
-## 6        0       0 2012-11-15 1.716981 0.000000
-```
-
-
-## Are there differences in activity patterns between weekdays and weekends?
-#Aggregating(summation) of steps over date
-
-```r
-steps_per_day_new<- aggregate(steps ~ date, new_activitydataset, FUN=sum)
-```
-#Plotting
-#Setting up the pannel for one row and two columns
-```
-par(mfrow=c(1,2))
-```
-#Histogram after imputing NA values with mean of 5-min interval
-
-```r
-hist(steps_per_day_new$steps, 
-     col="Red",
-     xlab = "Steps", 
-     ylab = "Frequency",
-     ylim = c(0,35),
-     main = "Total Number Of Steps Taken Each day \n(After imputing NA values with \n mean of 5-min interval)",
-     cex.main = 0.7)
-```
-
-![plot of chunk unnamed-chunk-13](figure/unnamed-chunk-13-1.png)
-#Histogram with the orginal dataset
-
-```r
-hist(steps_per_day$steps, 
-     col="purple", 
-     xlab = "Steps", 
-     ylab = "Frequency",
-     ylim = c(0,35),
-     main = "Total Number Of Steps Taken Each day \n(Orginal Dataset)",
-     cex.main = 0.7) 
-```
-
-![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-1.png)
